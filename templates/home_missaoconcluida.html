@@ -1,0 +1,33 @@
+{% extends admin_base_template %}
+{% block body %}
+
+<div class="row">
+        <table class="table table-striped table-hover ">
+          <thead>
+            <tr>
+              <th>Ficha</th>
+              <th>Motorista</th>
+              <th>Viatura</th>
+              <th>Missão</th>
+              <th>Data/Hora Data Chegada</th>
+              <th>KM de Chegada</th>
+
+            </tr>
+          </thead>
+          <tbody>
+            {% for missaoconcluida in missaoconcluida_controller.result %}
+                <tr>
+                  <td>{{missaoconcluida.ficha}}</td>
+                  <td>{{missaoconcluida.motorista}}</td>
+                  <td>{{missaoconcluida.viatura}}</td>
+                  <td>{{missaoconcluida.missao }}</td>
+                  <td>{{missaoconcluida.data_chegada}}</td>
+                  <td>{{missaoconcluida.km_chegada}}</td>
+                </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

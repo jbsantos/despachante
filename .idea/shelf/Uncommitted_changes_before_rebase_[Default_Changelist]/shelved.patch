@@ -1,0 +1,2677 @@
+Index: templates/recovery.html
+===================================================================
+diff --git a/templates/recovery.html b/templates/recovery.html
+deleted file mode 100644
+--- a/templates/recovery.html	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,38 +0,0 @@
+-{% extends "bootstrap/base.html" %}
+-{% block title %}Login{% endblock %}
+-
+-{% block styles %}
+-{{super()}}
+-<link rel="stylesheet" href="{{url_for('.static', filename='css/login.css')}}">
+-{% endblock %}
+-
+-{% block content %}
+-  <form class="form-signin text-center" action="/recovery-password/" method="post">
+-	<img class="mb-4" src="https://getbootstrap.com/docs/4.0/assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
+-	<h1 class="h3 mb-3 font-weight-normal">Solicitar nova senha</h1>
+-    <div class="checkbox mb-3">
+-        <label for="inputEmail" class="sr-only">E-mail</label>
+-        <input name="email" type="email" id="inputEmail" class="form-control" placeholder="E-mail" required autofocus>
+-    </div>
+-	<button class="btn btn-lg btn-primary btn-block" type="submit">Enviar solicitação</button>
+-	<!-- Capítulo 10 -->
+-	{% if data.status == 200 or data.status == 202 %}
+-        {% if data.type == 3 %}
+-        <div class="alert alert-success" role="alert">
+-            {{data.msg}}
+-        </div>
+-        {% endif %}
+-	{% else %}
+-        {% if data.type == 1 %}
+-        <div class="alert alert-danger" role="alert">
+-            {{data.msg}}
+-        </div>
+-        {% endif %}
+-    {% endif %}
+-  </form>
+-{% endblock %}
+-
+-{% block scripts %}
+-{{super()}}
+-<script src="{{url_for('.static', filename='js/custom.js')}}"></script>
+-{% endblock %}
+\ No newline at end of file
+Index: model/User.py
+===================================================================
+diff --git a/model/User.py b/model/User.py
+deleted file mode 100644
+--- a/model/User.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,115 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from flask_sqlalchemy import SQLAlchemy
+-from sqlalchemy import func
+-from sqlalchemy.orm import relationship
+-from config import app_active, app_config
+-from passlib.hash import pbkdf2_sha256
+-from flask_login import UserMixin
+-
+-from model.Role import Role
+-
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-class User(db.Model, UserMixin):
+-    id = db.Column(db.Integer, primary_key=True)
+-    username = db.Column(db.String(40), unique=True, nullable=False)
+-    email = db.Column(db.String(120), unique=True, nullable=False)
+-    password = db.Column(db.String(200), nullable=False)
+-    date_created = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+-    last_update = db.Column(db.DateTime(6), onupdate=db.func.current_timestamp(), nullable=True)
+-    recovery_code = db.Column(db.String(200), nullable=True)
+-    active = db.Column(db.Boolean(), default=1, nullable=True)
+-    role = db.Column(db.Integer, db.ForeignKey(Role.id), nullable=False)
+-    funcao = relationship(Role)
+-    
+-    def __repr__(self):
+-        return '%s - %s' % (self.id, self.username)
+-
+-    def get_user_by_email(self):
+-        try:
+-            res = db.session.query(User).filter(User.email==self.email).first()
+-        except Exception as e:
+-            res = None
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_user_by_id(self):
+-        try:
+-            res = db.session.query(User).filter(User.id==self.id).first()
+-        except Exception as e:
+-            res = None
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_user_by_recovery(self):
+-        try:
+-            res = db.session.query(User).filter(User.recovery_code==self.recovery_code).first()
+-        except Exception as e:
+-            res = None
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_users(self):
+-        try:
+-            return User.query.all()
+-        except Exception as e:
+-            print("Erro ao listar usuários.")
+-            return []  
+-
+-    def save(self):
+-        try:
+-            db.session.add(self)
+-            db.session.commit()
+-            return True
+-        except Exception as e:
+-            db.session.rollback()
+-            return False
+-
+-    def update(self, obj):
+-        try:
+-            res = db.session.query(User).filter(User.id == self.id).update(obj)
+-            db.session.commit()
+-            return True
+-        except Exception as e:
+-            print(e)
+-            db.session.rollback()
+-            return False
+-
+-    def delete(self):
+-        try:
+-            User.query.filter(User.id==self.id).delete()
+-            return True
+-        except Exception as e:
+-            return False
+-
+-    def set_password(self, password):
+-        self.password = pbkdf2_sha256.hash(password)
+-
+-    def hash_password(self, password):
+-        try:
+-            return pbkdf2_sha256.hash(password)
+-        except Exception as e:
+-            print("Erro ao criptografar senha %s" % e)
+-
+-    def verify_password(self, password_no_hash, password_database):
+-        try:
+-            return pbkdf2_sha256.verify(password_no_hash, password_database)
+-        except ValueError:
+-            return False
+-
+-    def get_total_users(self):
+-        try:
+-            res = db.session.query(func.count(User.id)).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+\ No newline at end of file
+Index: README.md
+===================================================================
+diff --git a/README.md b/README.md
+deleted file mode 100644
+--- a/README.md	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,5 +0,0 @@
+-# livro_flask
+-
+-Instalação do projeto nos capítulos 1 e 2 do livro.
+-
+-Para saber mais conheça o livro. https://www.casadocodigo.com.br/products/livro-flask-a-z
+Index: migrations.old/versions/ca732ea1bff2_.py
+===================================================================
+diff --git a/migrations.old/versions/ca732ea1bff2_.py b/migrations.old/versions/ca732ea1bff2_.py
+deleted file mode 100644
+--- a/migrations.old/versions/ca732ea1bff2_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,30 +0,0 @@
+-"""empty message
+-
+-Revision ID: ca732ea1bff2
+-Revises: 2bf54ea1af90
+-Create Date: 2019-03-07 18:24:22.984002
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-from sqlalchemy.dialects import mysql
+-
+-# revision identifiers, used by Alembic.
+-revision = 'ca732ea1bff2'
+-down_revision = '2bf54ea1af90'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('active', sa.Boolean(), nullable=True))
+-    op.drop_column('user', 'status')
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('status', mysql.TINYINT(display_width=1), autoincrement=False, nullable=True))
+-    op.drop_column('user', 'active')
+-    # ### end Alembic commands ###
+Index: migrations.old/versions/e4aa835ece34_.py
+===================================================================
+diff --git a/migrations.old/versions/e4aa835ece34_.py b/migrations.old/versions/e4aa835ece34_.py
+deleted file mode 100644
+--- a/migrations.old/versions/e4aa835ece34_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,74 +0,0 @@
+-"""empty message
+-
+-Revision ID: e4aa835ece34
+-Revises: 
+-Create Date: 2019-03-02 10:56:19.432856
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-
+-
+-# revision identifiers, used by Alembic.
+-revision = 'e4aa835ece34'
+-down_revision = None
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.create_table('category',
+-    sa.Column('id', sa.Integer(), nullable=False),
+-    sa.Column('name', sa.String(length=20), nullable=False),
+-    sa.Column('description', sa.Text(), nullable=True),
+-    sa.PrimaryKeyConstraint('id'),
+-    sa.UniqueConstraint('name')
+-    )
+-    op.create_table('role',
+-    sa.Column('id', sa.Integer(), nullable=False),
+-    sa.Column('name', sa.String(length=40), nullable=False),
+-    sa.PrimaryKeyConstraint('id'),
+-    sa.UniqueConstraint('name')
+-    )
+-    op.create_table('user',
+-    sa.Column('id', sa.Integer(), nullable=False),
+-    sa.Column('username', sa.String(length=40), nullable=False),
+-    sa.Column('email', sa.String(length=120), nullable=False),
+-    sa.Column('password', sa.String(length=200), nullable=False),
+-    sa.Column('date_created', sa.DateTime(timezone=6), nullable=False),
+-    sa.Column('last_update', sa.DateTime(timezone=6), nullable=False),
+-    sa.Column('status', sa.Boolean(), nullable=False),
+-    sa.Column('role', sa.Integer(), nullable=False),
+-    sa.ForeignKeyConstraint(['role'], ['role.id'], ),
+-    sa.PrimaryKeyConstraint('id'),
+-    sa.UniqueConstraint('email'),
+-    sa.UniqueConstraint('username')
+-    )
+-    op.create_table('product',
+-    sa.Column('id', sa.Integer(), nullable=False),
+-    sa.Column('name', sa.String(length=20), nullable=False),
+-    sa.Column('description', sa.Text(), nullable=False),
+-    sa.Column('qtd', sa.Integer(), nullable=True),
+-    sa.Column('image', sa.Text(), nullable=True),
+-    sa.Column('price', sa.Numeric(precision=10, scale=2), nullable=False),
+-    sa.Column('date_created', sa.DateTime(timezone=6), nullable=False),
+-    sa.Column('last_update', sa.DateTime(timezone=6), nullable=False),
+-    sa.Column('status', sa.Integer(), nullable=False),
+-    sa.Column('user_created', sa.Integer(), nullable=False),
+-    sa.Column('category', sa.Integer(), nullable=False),
+-    sa.ForeignKeyConstraint(['category'], ['category.id'], ),
+-    sa.ForeignKeyConstraint(['user_created'], ['user.id'], ),
+-    sa.PrimaryKeyConstraint('id'),
+-    sa.UniqueConstraint('name')
+-    )
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.drop_table('product')
+-    op.drop_table('user')
+-    op.drop_table('role')
+-    op.drop_table('category')
+-    # ### end Alembic commands ###
+Index: config.py
+===================================================================
+diff --git a/config.py b/config.py
+deleted file mode 100644
+--- a/config.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,41 +0,0 @@
+-import os
+-import random, string
+-
+-class Config(object):
+-    CSRF_ENABLED = True
+-    SECRET = 'ysb_92=qe#dgjf8%0ng+a*#4rt#5%3*4kw5%i2bck*gn@w3@f&-&'
+-    TEMPLATE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+-    ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+-    APP = None
+-    #SQLALCHEMY_DATABASE_URI = 'mysql+mysqldb://jorge:123456@localhost:3306/livro_despachante'
+-    SQLALCHEMY_DATABASE_URI = 'mysql+mysqldb://root:manutencao@10.80.84.28:3306/livro_despachante'
+-    SENDGRID_API_KEY = 'API_KEY'
+-
+-class DevelopmentConfig(Config):
+-    TESTING = False
+-    DEBUG = True
+-    IP_HOST = 'localhost'
+-    PORT_HOST = 8000
+-    URL_MAIN = 'http://%s:%s/' % (IP_HOST, PORT_HOST)
+-
+-class TestingConfig(Config):
+-    TESTING = True
+-    DEBUG = True
+-    IP_HOST = 'localhost' # Aqui geralmente é um IP de um servidor na nuvem e não o endereço da máquina local
+-    PORT_HOST = 5000
+-    URL_MAIN = 'http://%s:%s/' % (IP_HOST, PORT_HOST)
+-
+-class ProductionConfig(Config):
+-    DEBUG = False
+-    TESTING = False
+-    IP_HOST = 'localhost' # Aqui geralmente é um IP de um servidor na nuvem e não o endereço da máquina local
+-    PORT_HOST = 8080
+-    URL_MAIN = 'http://%s:%s/' % (IP_HOST, PORT_HOST)
+-
+-app_config = {
+-    'development': DevelopmentConfig(),
+-    'testing': TestingConfig(),
+-    'production': ProductionConfig()
+-}
+-
+-app_active = os.getenv('FLASK_ENV')
+Index: static/css/home.css
+===================================================================
+diff --git a/static/css/home.css b/static/css/home.css
+deleted file mode 100644
+--- a/static/css/home.css	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,31 +0,0 @@
+-body, html {
+-  height:100%;
+-}
+-.py-2{
+-    overflow: hidden;
+-}
+-.card {
+-    overflow: hidden;
+-    padding: 0 10px;
+-    box-sizing: border-box;
+-    border-radius: 5px;
+-}
+-.card-body .rotate {
+-    z-index: 8;
+-    float: right;
+-    height: 100%;
+-}
+-
+-.card-body .rotate i {
+-    color: rgba(20, 20, 20, 0.15);
+-    position: absolute;
+-    left: auto;
+-    right: 21px;
+-    bottom: 0px;
+-    display: block;
+-    -webkit-transform: rotate(-44deg);
+-    -moz-transform: rotate(-44deg);
+-    -o-transform: rotate(-44deg);
+-    -ms-transform: rotate(-44deg);
+-    transform: rotate(-44deg);
+-}
+\ No newline at end of file
+Index: .idea/.gitignore
+===================================================================
+diff --git a/.idea/.gitignore b/.idea/.gitignore
+deleted file mode 100644
+--- a/.idea/.gitignore	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,3 +0,0 @@
+-# Default ignored files
+-/shelf/
+-/workspace.xml
+Index: requeriments1.txt
+===================================================================
+diff --git a/requeriments1.txt b/requeriments1.txt
+deleted file mode 100644
+--- a/requeriments1.txt	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,57 +0,0 @@
+-alembic==1.0.11
+-asn1crypto==0.24.0
+-backcall==0.1.0
+-certifi==2022.6.15
+-cffi==1.12.3
+-charset-normalizer==2.0.12
+-Click==7.0
+-cryptography==2.7
+-dataclasses==0.8
+-decorator==4.4.0
+-dominate==2.3.5
+-Flask==1.0.3
+-Flask-Admin==1.5.3
+-Flask-Bootstrap==3.3.7.1
+-Flask-Login==0.4.1
+-Flask-Migrate==2.5.2
+-Flask-MySQLdb==1.0.1
+-Flask-Script==2.0.6
+-Flask-SQLAlchemy==2.4.0
+-greenlet==1.1.2
+-idna==3.3
+-importlib-metadata==4.8.3
+-ipython==7.6.0
+-ipython-genutils==0.2.0
+-itsdangerous==1.1.0
+-jedi==0.14.0
+-Jinja2==2.10.1
+-jwt==0.6.1
+-Mako==1.0.12
+-MarkupSafe==1.1.1
+-migrate==0.3.8
+-mysqlclient==1.4.2.post1
+-panda==0.3.1
+-parso==0.5.0
+-passlib==1.7.1
+-pexpect==4.7.0
+-pickleshare==0.7.5
+-prompt-toolkit==2.0.9
+-ptyprocess==0.6.0
+-pycparser==2.19
+-Pygments==2.4.2
+-PyJWT==1.7.1
+-python-dateutil==2.8.0
+-python-editor==1.0.4
+-python-http-client==3.1.0
+-requests==2.27.1
+-sendgrid==6.0.5
+-six==1.12.0
+-SQLAlchemy==1.3.5
+-traitlets==4.3.2
+-typing_extensions==4.1.1
+-urllib3==1.26.9
+-visitor==0.1.3
+-wcwidth==0.1.7
+-Werkzeug==0.15.4
+-WTForms==2.2.1
+-zipp==3.6.0
+Index: controller/Email.py
+===================================================================
+diff --git a/controller/Email.py b/controller/Email.py
+deleted file mode 100644
+--- a/controller/Email.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,32 +0,0 @@
+-import os
+-from sendgrid import SendGridAPIClient
+-from sendgrid.helpers.mail import Mail
+-
+-from config import app_active, app_config
+-config = app_config[app_active]
+-
+-class EmailController():
+-    def send_email(self, t_email, subject, content_text, f_email="contato@site.com.br"):
+-        message = Mail(
+-            from_email=f_email,
+-            to_emails=t_email,
+-            subject=subject,
+-            html_content=content_text)
+-        try:
+-            sg = SendGridAPIClient(config.SENDGRID_API_KEY)
+-            response = sg.send(message)
+-            
+-            print(response.status_code)
+-            print(response.body)
+-            print(response.headers)
+-
+-            return {
+-                'status_code' : response.status_code,
+-                'body' : response.body,
+-                'headers' : response.headers
+-            }
+-        except Exception as e:
+-            print(e.message)
+-            raise e
+-        
+-        
+\ No newline at end of file
+Index: .idea/misc.xml
+===================================================================
+diff --git a/.idea/misc.xml b/.idea/misc.xml
+deleted file mode 100644
+--- a/.idea/misc.xml	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,7 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.6 (livro_flask-master)" project-jdk-type="Python SDK" />
+-  <component name="PyCharmProfessionalAdvertiser">
+-    <option name="shown" value="true" />
+-  </component>
+-</project>
+\ No newline at end of file
+Index: admin/Admin.py
+===================================================================
+diff --git a/admin/Admin.py b/admin/Admin.py
+deleted file mode 100644
+--- a/admin/Admin.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,28 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from flask_admin import Admin
+-# Capítulo 10 - Remover
+-from flask_admin.contrib.sqla import ModelView
+-from flask_admin.menu import MenuLink
+-
+-from model.Role import Role
+-from model.User import User
+-from model.Category import Category
+-from model.Motorista import Motorista
+-from model.Viatura import Viatura
+-
+-from model.Product import Product
+-from model.Missao import Missao
+-from admin.Views import UserView, HomeView, RoleView, CategoryView, ProductView, MissaoView, MotoristaView, ViaturaView
+-
+-def start_views(app, db):
+-    admin = Admin(app, name='MISSÕES STS-DESPACHO', base_template='admin/base.html', template_mode='bootstrap3', index_view=HomeView())
+-
+-    admin.add_view(RoleView(Role, db.session, "Funções",  category="Usuários"))
+-    admin.add_view(UserView(User, db.session, "Usuários", category="Usuários"))
+-    #admin.add_view(CategoryView(Category, db.session, 'Categorias', category="Produtos"))
+-    #admin.add_view(ProductView(Product, db.session, "Produtos", category="Produtos"))
+-    admin.add_view(ViaturaView(Viatura, db.session, 'Viatura', category="Missão"))
+-    admin.add_view(MotoristaView(Motorista, db.session, 'Motorista', category="Missão"))
+-    admin.add_view(MissaoView(Missao, db.session, "Missão", category="Missão"))
+-
+-    admin.add_link(MenuLink(name='Logout', url='/logout'))
+\ No newline at end of file
+Index: .vscode/settings.json
+===================================================================
+diff --git a/.vscode/settings.json b/.vscode/settings.json
+deleted file mode 100644
+--- a/.vscode/settings.json	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,3 +0,0 @@
+-{
+-    "python.pythonPath": "venv/bin/python"
+-}
+\ No newline at end of file
+Index: migrations.old/versions/c0e7f698ff99_.py
+===================================================================
+diff --git a/migrations.old/versions/c0e7f698ff99_.py b/migrations.old/versions/c0e7f698ff99_.py
+deleted file mode 100644
+--- a/migrations.old/versions/c0e7f698ff99_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,28 +0,0 @@
+-"""empty message
+-
+-Revision ID: c0e7f698ff99
+-Revises: ea5b6a651855
+-Create Date: 2019-03-10 14:30:34.213698
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-
+-
+-# revision identifiers, used by Alembic.
+-revision = 'c0e7f698ff99'
+-down_revision = 'ea5b6a651855'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('recovery_code', sa.String(length=100), nullable=True))
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.drop_column('user', 'recovery_code')
+-    # ### end Alembic commands ###
+Index: controller/Product.py
+===================================================================
+diff --git a/controller/Product.py b/controller/Product.py
+deleted file mode 100644
+--- a/controller/Product.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,60 +0,0 @@
+-from datetime import datetime
+-
+-from model.Product import Product
+-
+-class ProductController():
+-    def __init__(self):
+-        self.product_model = Product()
+-
+-    def get_products(self, limit):    
+-        result = []
+-        try:
+-            res = self.product_model.get_all(limit=limit)
+-
+-            for r in res:
+-                result.append({
+-                    'id': r.id,
+-                    'name': r.name,
+-                    'description': r.description,
+-                    'qtd': str(r.qtd),
+-                    'price': str(r.price),
+-                    'image': r.image,
+-                    'date_created': r.date_created
+-                })
+-            status = 200
+-        except Exception as e:
+-            print(e)
+-            result = []
+-            status = 400
+-        finally:
+-            return {
+-                'result': result,
+-                'status': status
+-            }
+-        
+-    def get_product_by_id(self, product_id):    
+-        result = {}
+-        try:
+-            self.product_model.id = product_id
+-            res = self.product_model.get_product_by_id()
+-            
+-            result = {
+-                'id': res.id,
+-                'name': res.name,
+-                'description': res.description,
+-                'qtd': str(res.qtd),
+-                'price': str(res.price),
+-                'image': res.image,
+-                'date_created': res.date_created
+-            }
+-
+-            status = 200
+-        except Exception as e:
+-            print(e)
+-            result = []
+-            status = 400
+-        finally:
+-            return {
+-                'result': result,
+-                'status': status
+-            }
+\ No newline at end of file
+Index: .idea/encodings.xml
+===================================================================
+diff --git a/.idea/encodings.xml b/.idea/encodings.xml
+deleted file mode 100644
+--- a/.idea/encodings.xml	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,4 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="Encoding" addBOMForNewFiles="with NO BOM" />
+-</project>
+\ No newline at end of file
+Index: .gitignore
+===================================================================
+diff --git a/.gitignore b/.gitignore
+deleted file mode 100644
+--- a/.gitignore	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,2 +0,0 @@
+-/venv
+-venv
+\ No newline at end of file
+Index: model/Category.py
+===================================================================
+diff --git a/model/Category.py b/model/Category.py
+deleted file mode 100644
+--- a/model/Category.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,26 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from sqlalchemy import func
+-from flask_sqlalchemy import SQLAlchemy
+-from config import app_active, app_config
+-from model.User import User
+-
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-class Category(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=True)
+-
+-    def __repr__(self):
+-        return self.name
+-
+-    def get_total_categories(self):
+-        try:
+-            res = db.session.query(func.count(Category.id)).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+\ No newline at end of file
+Index: .idea/livro_flask.iml
+===================================================================
+diff --git a/.idea/livro_flask.iml b/.idea/livro_flask.iml
+deleted file mode 100644
+--- a/.idea/livro_flask.iml	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,13 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<module type="PYTHON_MODULE" version="4">
+-  <component name="NewModuleRootManager">
+-    <content url="file://$MODULE_DIR$">
+-      <excludeFolder url="file://$MODULE_DIR$/venv" />
+-    </content>
+-    <orderEntry type="inheritedJdk" />
+-    <orderEntry type="sourceFolder" forTests="false" />
+-  </component>
+-  <component name="TestRunnerService">
+-    <option name="PROJECT_TEST_RUNNER" value="Unittests" />
+-  </component>
+-</module>
+\ No newline at end of file
+Index: migrations.old/versions/2bf54ea1af90_.py
+===================================================================
+diff --git a/migrations.old/versions/2bf54ea1af90_.py b/migrations.old/versions/2bf54ea1af90_.py
+deleted file mode 100644
+--- a/migrations.old/versions/2bf54ea1af90_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,38 +0,0 @@
+-"""empty message
+-
+-Revision ID: 2bf54ea1af90
+-Revises: b7b7026e11a6
+-Create Date: 2019-03-02 21:23:52.309387
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-from sqlalchemy.dialects import mysql
+-
+-# revision identifiers, used by Alembic.
+-revision = '2bf54ea1af90'
+-down_revision = 'b7b7026e11a6'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.alter_column('product', 'status',
+-               existing_type=mysql.INTEGER(display_width=11),
+-               nullable=True)
+-    op.alter_column('user', 'status',
+-               existing_type=mysql.TINYINT(display_width=1),
+-               nullable=True)
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.alter_column('user', 'status',
+-               existing_type=mysql.TINYINT(display_width=1),
+-               nullable=False)
+-    op.alter_column('product', 'status',
+-               existing_type=mysql.INTEGER(display_width=11),
+-               nullable=False)
+-    # ### end Alembic commands ###
+Index: migrate.py
+===================================================================
+diff --git a/migrate.py b/migrate.py
+deleted file mode 100644
+--- a/migrate.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,71 +0,0 @@
+-from flask import Flask
+-from flask_sqlalchemy import SQLAlchemy
+-from flask_script import Manager
+-from flask_migrate import Migrate, MigrateCommand
+-from config import app_active, app_config
+-config = app_config[app_active]
+-
+-app = Flask(__name__)
+-app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI
+-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+-
+-db = SQLAlchemy(app)
+-migrate = Migrate(app, db)
+-
+-manager = Manager(app)
+-manager.add_command('db', MigrateCommand)
+-
+-class Role(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(40), unique=True, nullable=False)
+-
+-class User(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    username = db.Column(db.String(40), unique=True, nullable=False)
+-    email = db.Column(db.String(120), unique=True, nullable=False)
+-    password = db.Column(db.String(200), nullable=False)
+-    date_created = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+-    last_update = db.Column(db.DateTime(6), onupdate=db.func.current_timestamp(), nullable=True)
+-    recovery_code = db.Column(db.String(200), nullable=True)
+-    active = db.Column(db.Boolean(), default=1, nullable=True)
+-    role = db.Column(db.Integer, db.ForeignKey(Role.id), nullable=False)
+-
+-class Category(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=True)
+-    
+-class Product(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=False)
+-    qtd = db.Column(db.Integer, nullable=True, default=0)
+-    image = db.Column(db.Text(), nullable=True)
+-    price = db.Column(db.Numeric(10,2), nullable=False)
+-    date_created = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+-    last_update = db.Column(db.DateTime(6), onupdate=db.func.current_timestamp(), nullable=True)
+-    status = db.Column(db.Integer, default=1, nullable=True)
+-    user_created = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+-    category = db.Column(db.Integer, db.ForeignKey(Category.id), nullable=False)
+-
+-class Motorista(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=True)
+-
+-class Missao(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    ficha = db.Column(db.Integer(10), unique=False, nullable=True)
+-    siloms = db.Column(db.Integer(10), unique=True, nullable=False)
+-    viatura = db.Column(db.String(50), unique=True, nullable=False)
+-    natureza_servico = db.Column(db.Text(), nullable=False)
+-    km_saida = db.Column(db.Numeric(10,2), nullable=False)
+-    km_chegada = db.Column(db.Numeric(10,2), nullable=True)
+-    data_saida = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+-    data_chegada = db.Column(db.DateTime(6), onupdate=db.func.current_timestamp(), nullable=True)
+-    status = db.Column(db.Integer, default=1, nullable=True)
+-    user_created = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+-    motorista = db.Column(db.Integer, db.ForeignKey(Motorista.id), nullable=False)
+-
+-if __name__ == '__main__':
+-    manager.run()
+\ No newline at end of file
+Index: templates/login.html
+===================================================================
+diff --git a/templates/login.html b/templates/login.html
+deleted file mode 100644
+--- a/templates/login.html	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,46 +0,0 @@
+-{% extends "bootstrap/base.html" %}
+-{% block title %}Login{% endblock %}
+-
+-{% block styles %}
+-{{super()}}
+-<link rel="stylesheet" href="{{url_for('.static', filename='css/login.css')}}">
+-{% endblock %}
+-
+-{% block content %}
+-  <form class="form-signin text-center" action="/login/" method="post">
+-	<img class="mb-4" src="https://getbootstrap.com/docs/4.0/assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
+-	<h1 class="h3 mb-3 font-weight-normal">Login</h1>
+-		<div class="checkbox mb-3">
+-        <label for="inputEmail" class="sr-only">E-mail</label>
+-        <input name="email" type="email" id="inputEmail" class="form-control" placeholder="E-mail" required autofocus>
+-    </div>
+-    <div class="checkbox mb-3">
+-	    <label for="inputPassword" class="sr-only">Senha</label>
+-			<input name="password" type="password" id="inputPassword" class="form-control" placeholder="Senha" required>
+-		</div>
+-	<button class="btn btn-lg btn-primary btn-block" type="submit">Entrar</button>
+-	<a href="http://localhost:8000/recovery-password/">Recuperar senha</a>
+-	{% if data.status == 401 %}
+-		{% if data.type == 1 %}
+-		<div class="alert alert-danger" role="alert">
+-			{{data.msg}}
+-		</div>
+-		{% elif data.type == 2 %}
+-		<div class="alert alert-warning" role="alert">
+-			{{data.msg}}
+-		</div>
+-  	{% endif %}
+-	{% elif data.status == 200 %}
+-		{% if data.type == 3 %}
+-		<div class="alert alert-success" role="alert">
+-			{{data.msg}}
+-		</div>
+-  	{% endif %}
+-  {% endif %}
+-  </form>
+-{% endblock %}
+-
+-{% block scripts %}
+-{{super()}}
+-<script src="{{url_for('.static', filename='js/custom.js')}}"></script>
+-{% endblock %}
+\ No newline at end of file
+Index: model/Role.py
+===================================================================
+diff --git a/model/Role.py b/model/Role.py
+deleted file mode 100644
+--- a/model/Role.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,13 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from flask_sqlalchemy import SQLAlchemy
+-from config import app_active, app_config
+-
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-class Role(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(40), unique=True, nullable=False)
+-
+-    def __repr__(self):
+-        return self.name
+\ No newline at end of file
+Index: static/css/login.css
+===================================================================
+diff --git a/static/css/login.css b/static/css/login.css
+deleted file mode 100644
+--- a/static/css/login.css	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,130 +0,0 @@
+-html,
+-body {
+-  height: 100%;
+-}
+-
+-body {
+-  display: -ms-flexbox;
+-  display: -webkit-box;
+-  display: flex;
+-  -ms-flex-align: center;
+-  -ms-flex-pack: center;
+-  -webkit-box-align: center;
+-  align-items: center;
+-  -webkit-box-pack: center;
+-  justify-content: center;
+-  padding-top: 40px;
+-  padding-bottom: 40px;
+-  background-color: #f5f5f5;
+-}
+-
+-.form-signin {
+-  width: 100%;
+-  max-width: 330px;
+-  padding: 15px;
+-  margin: 0 auto;
+-}
+-.form-signin .checkbox {
+-  font-weight: 400;
+-}
+-.form-signin .form-control {
+-  position: relative;
+-  box-sizing: border-box;
+-  height: auto;
+-  padding: 10px;
+-  font-size: 16px;
+-}
+-.form-signin .form-control:focus {
+-  z-index: 2;
+-}
+-.form-signin input[type="email"] {
+-  margin-bottom: -1px;
+-  border-bottom-right-radius: 0;
+-  border-bottom-left-radius: 0;
+-}
+-.form-signin input[type="password"] {
+-  margin-bottom: 10px;
+-  border-top-left-radius: 0;
+-  border-top-right-radius: 0;
+-}
+-
+-
+-body, html {
+-  height:100%;
+-}
+-
+-/*
+- * Off Canvas sidebar at medium breakpoint
+- * --------------------------------------------------
+- */
+-@media screen and (max-width: 992px) {
+-
+-  .row-offcanvas {
+-    position: relative;
+-    -webkit-transition: all 0.25s ease-out;
+-    -moz-transition: all 0.25s ease-out;
+-    transition: all 0.25s ease-out;
+-  }
+-
+-  .row-offcanvas-left
+-  .sidebar-offcanvas {
+-    left: -33%;
+-  }
+-
+-  .row-offcanvas-left.active {
+-    left: 33%;
+-    margin-left: -6px;
+-  }
+-
+-  .sidebar-offcanvas {
+-    position: absolute;
+-    top: 0;
+-    width: 33%;
+-    height: 100%;
+-  }
+-}
+-
+-/*
+- * Off Canvas wider at sm breakpoint
+- * --------------------------------------------------
+- */
+-@media screen and (max-width: 34em) {
+-  .row-offcanvas-left
+-  .sidebar-offcanvas {
+-    left: -45%;
+-  }
+-
+-  .row-offcanvas-left.active {
+-    left: 45%;
+-    margin-left: -6px;
+-  }
+-
+-  .sidebar-offcanvas {
+-    width: 45%;
+-  }
+-}
+-
+-.card {
+-    overflow:hidden;
+-}
+-
+-.card-body .rotate {
+-    z-index: 8;
+-    float: right;
+-    height: 100%;
+-}
+-
+-.card-body .rotate i {
+-    color: rgba(20, 20, 20, 0.15);
+-    position: absolute;
+-    left: 0;
+-    left: auto;
+-    right: -10px;
+-    bottom: 0;
+-    display: block;
+-    -webkit-transform: rotate(-44deg);
+-    -moz-transform: rotate(-44deg);
+-    -o-transform: rotate(-44deg);
+-    -ms-transform: rotate(-44deg);
+-    transform: rotate(-44deg);
+-}
+\ No newline at end of file
+Index: templates/new_password.html
+===================================================================
+diff --git a/templates/new_password.html b/templates/new_password.html
+deleted file mode 100644
+--- a/templates/new_password.html	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,42 +0,0 @@
+-{% extends "bootstrap/base.html" %}
+-{% block title %}Login{% endblock %}
+-
+-{% block styles %}
+-{{super()}}
+-<link rel="stylesheet" href="{{url_for('.static', filename='css/login.css')}}">
+-{% endblock %}
+-
+-{% block content %}
+-  <form class="form-signin text-center" action="/new-password/" method="post">
+-	<img class="mb-4" src="https://getbootstrap.com/docs/4.0/assets/brand/bootstrap-solid.svg" alt="" width="72" height="72">
+-	<h1 class="h3 mb-3 font-weight-normal">Nova Senha</h1>
+-    <div class="checkbox mb-3">
+-	    <label for="inputPassword" class="sr-only">Senha</label>
+-		<input name="password" type="password" id="inputPassword" class="form-control" placeholder="Senha" required>
+-	</div>
+-    <input name="user_id" type="hidden" id="inputUser_id" class="form-control" value="{{data.user_id}}">
+-	<button class="btn btn-lg btn-primary btn-block" type="submit">Alterar senha</button>
+-	{% if data.status == 401 %}
+-		{% if data.type == 1 %}
+-		<div class="alert alert-danger" role="alert">
+-			{{data.msg}}
+-		</div>
+-		{% elif data.type == 2 %}
+-		<div class="alert alert-warning" role="alert">
+-			{{data.msg}}
+-		</div>
+-  	    {% endif %}
+-	{% elif data.status == 200 %}
+-		{% if data.type == 3 %}
+-		<div class="alert alert-success" role="alert">
+-			{{data.msg}}
+-		</div>
+-  	    {% endif %}
+-    {% endif %}
+-  </form>
+-{% endblock %}
+-
+-{% block scripts %}
+-{{super()}}
+-<script src="{{url_for('.static', filename='js/custom.js')}}"></script>
+-{% endblock %}
+\ No newline at end of file
+Index: requirements.txt
+===================================================================
+diff --git a/requirements.txt b/requirements.txt
+deleted file mode 100644
+--- a/requirements.txt	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,47 +0,0 @@
+-alembic==1.0.11
+-asn1crypto==0.24.0
+-backcall==0.1.0
+-cffi==1.12.3
+-Click==7.0
+-cryptography==2.7
+-decorator==4.4.0
+-dominate==2.3.5
+-Flask==1.0.3
+-Flask-Admin==1.5.3
+-Flask-Bootstrap==3.3.7.1
+-Flask-Login==0.4.1
+-Flask-Migrate==2.5.2
+-Flask-MySQLdb==0.2.0
+-Flask-Script==2.0.6
+-Flask-SQLAlchemy==2.4.0
+-ipdb==0.12
+-ipython==7.6.0
+-ipython-genutils==0.2.0
+-itsdangerous==1.1.0
+-jedi==0.14.0
+-Jinja2==2.10.1
+-jwt==0.6.1
+-Mako==1.0.12
+-MarkupSafe==1.1.1
+-mysqlclient==1.4.2.post1
+-parso==0.5.0
+-passlib==1.7.1
+-pexpect==4.7.0
+-pickleshare==0.7.5
+-pkg-resources==0.0.0
+-prompt-toolkit==2.0.9
+-ptyprocess==0.6.0
+-pycparser==2.19
+-Pygments==2.4.2
+-PyJWT==1.7.1
+-python-dateutil==2.8.0
+-python-editor==1.0.4
+-python-http-client==3.1.0
+-sendgrid==6.0.5
+-six==1.12.0
+-SQLAlchemy==1.3.5
+-traitlets==4.3.2
+-visitor==0.1.3
+-wcwidth==0.1.7
+-Werkzeug==0.15.4
+-WTForms==2.2.1
+\ No newline at end of file
+Index: admin/Views.py
+===================================================================
+diff --git a/admin/Views.py b/admin/Views.py
+deleted file mode 100644
+--- a/admin/Views.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,329 +0,0 @@
+-# -*- coding: utf-8 -*-
+-import datetime
+-
+-from flask_admin import AdminIndexView, expose
+-from flask_admin.contrib.sqla import ModelView
+-# Capítulo 10
+-from flask_login import current_user
+-from flask import redirect
+-
+-from config import app_config, app_active
+-
+-from model.User import User
+-from model.Category import Category
+-from model.Motorista import Motorista
+-from model.Viatura import Viatura
+-
+-from model.Product import Product
+-from model.Missao import Missao
+-from datetime import datetime, date
+-
+-from controller.Missao import MissaoController
+-config = app_config[app_active]
+-
+-class HomeView(AdminIndexView):
+-    extra_css = [config.URL_MAIN + 'static/css/home.css','https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css']
+-
+-    @expose('/')
+-    def index(self):
+-        user_model = User()
+-        category_model = Category()
+-        motorista_model = Motorista()
+-        viatura_model = Viatura()
+-        missao_controller = MissaoController()
+-
+-
+-        product_model = Product()
+-        missao_model = Missao()
+-
+-        users = user_model.get_total_users()
+-        categories = category_model.get_total_categories()
+-        motorista = motorista_model.get_total_motorista()
+-        viatura = viatura_model.get_total_viatura()
+-
+-        products = product_model.get_total_products()
+-        missao = missao_model.get_total_missao()
+-        last_products = product_model.get_last_products()
+-        last_missao = missao_model.get_last_missao()
+-        missao_controller = missao_controller.get_missao()
+-        print(missao_controller)
+-        return self.render('home_admin.html', report={
+-            'users': users[0],
+-            'categories': categories[0],
+-            'motorista': motorista[0],
+-            'products': products[0],
+-            'missao': missao[0],
+-            'viatura': viatura[0]
+-
+-
+-        }, last_products=last_products, last_missao=last_missao, missao_controller=missao_controller)
+-
+-
+-    def is_accessible(self):
+-        return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-class UserView(ModelView):
+-    column_labels = {
+-        'funcao': 'Função',
+-        'username': 'Nome de usuário',
+-        'email': 'E-mail',
+-        'date_created': 'Data de Criação',
+-        'last_update': 'Última atualização',        
+-        'active': 'Estado',
+-        'password': 'Senha',
+-    }
+-
+-    column_descriptions = {
+-        'funcao': 'Função no painel administrativo',
+-        'username': 'Nome de usuário no sistema',
+-        'email': 'E-mail do usuário no sistema',
+-        'date_created': 'Data de Criação do usuário no sistema',
+-        'last_update': 'Última atualização desse usuário no sistema',        
+-        'active': 'Estado ativo ou inativo no sistema',
+-        'password': 'Senha do usuário no sistema',
+-    }
+-
+-    column_exclude_list = ['password', 'recovery_code']
+-    form_excluded_columns = ['last_update', 'recovery_code']
+-
+-    form_widget_args = {
+-        'password': {
+-            'type': 'password'
+-        }
+-    }
+-
+-    can_set_page_size = True
+-    can_view_details = True
+-    column_searchable_list = ['username', 'email']
+-    column_filters = ['username', 'email', 'funcao']
+-    create_modal = True
+-    edit_modal = True
+-    can_export = True
+-    column_editable_list = ['username', 'email', 'funcao', 'active']
+-    column_sortable_list = ['username']
+-    column_default_sort = [('username', True), ('date_created', True)]
+-    column_details_exclude_list = ['password', 'recovery_code']
+-    column_export_exclude_list = ['password', 'recovery_code']
+-
+-    export_types = ['json', 'yaml', 'csv', 'xls', 'df']
+-
+-    def on_model_change(self, form, User, is_created):
+-        if 'password' in form:
+-            if form.password.data is not None:
+-                User.set_password(form.password.data)
+-            else:
+-                del form.password
+-
+-    # Capítulo 10
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-# Capítulo 10
+-class RoleView(ModelView):
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-class CategoryView(ModelView):
+-    can_view_details = True
+-
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-        elif role == 2:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-class ProductView(ModelView):
+-    can_view_details = True
+-    
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-        elif role == 2:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-        elif role == 3:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = False
+-
+-        return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-class MotoristaView(ModelView):
+-    can_view_details = True
+-
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-        elif role == 2:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-class ViaturaView(ModelView):
+-    can_view_details = True
+-
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-        elif role == 2:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-            return current_user.is_authenticated
+-
+-    def inaccessible_callback(self,name,**kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+-
+-def formatar_data_saida(self, request, missao, *args):
+-    data_pt = datetime.strftime(missao.data_saida, "%d/%m/%y  %H:%M")
+-    return data_pt
+-
+-def formatar_data_chegada(self, request, missao, *args):
+-    data_pt = datetime.strftime(missao.data_chegada, "%d/%m/%y  %H:%M")
+-    return data_pt
+-
+-def nome(self, request, missao, *args):
+-    data_pt = missao.user_created
+-    return data_pt
+-class MissaoView(ModelView):
+-    can_view_details = True
+-    column_editable_list = ['data_chegada', 'status', 'ficha']
+-    column_exclude_list = ['km_chegada', 'km_saida']
+-    create_modal = True
+-    edit_modal = True
+-    form_choices = {
+-
+-    }
+-    column_formatters = {'data_saida':formatar_data_saida, 'data_chegada': formatar_data_chegada}
+-
+-
+-    form_choices = {
+-
+-        'status': [
+-            ('1', 'Em andamento'),
+-            ('2', 'Oficina'),
+-            ('3', 'Missoa Concluída'),
+-            ('4', 'Pernoitando Fora'),
+-        ]
+-    }
+-    #column_formatters={'usuario':current_user}
+-    form_widget_args = {
+-        'ficha': {
+-            'rows': 10,
+-            'pl': 'color: black'
+-        }
+-    }
+-    column_labels = {
+-        'siloms': 'nº Siloms',
+-        'ficha': 'Nº Ficha',
+-        'viatura': 'RegFab e Viatura',
+-        'natureza_servico': 'Missão',
+-        'km_saida': 'Km de saída',
+-        'km_chegada': 'Km de Chegada',
+-        'motoristas': 'Motorista'
+-
+-    }
+-
+-
+-
+-    form_widget_args = {
+-        'usuario': {
+-
+-            'value': current_user,
+-            'readonly':True
+-        }
+-    }
+-    #column_list = ['data_saida']
+-    #form_columns = ['ficha', 'siloms','viatura', 'km_chegada', 'natureza_servico']
+-     #= ['ficha', 'siloms', 'viatura', 'km_chegada', 'natureza_servico']
+-    def is_accessible(self):
+-        role = current_user.role
+-        if role == 1:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-        elif role == 2:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = True
+-        elif role == 3:
+-            self.can_create = True
+-            self.can_edit = True
+-            self.can_delete = False
+-
+-        return current_user.is_authenticated
+-
+-    def inaccessible_callback(self, name, **kwargs):
+-        if current_user.is_authenticated:
+-            return redirect('/admin')
+-        else:
+-            return redirect('/login')
+\ No newline at end of file
+Index: migrations.old/versions/ea5b6a651855_.py
+===================================================================
+diff --git a/migrations.old/versions/ea5b6a651855_.py b/migrations.old/versions/ea5b6a651855_.py
+deleted file mode 100644
+--- a/migrations.old/versions/ea5b6a651855_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,30 +0,0 @@
+-"""empty message
+-
+-Revision ID: ea5b6a651855
+-Revises: 49f11dc4a9b3
+-Create Date: 2019-03-07 18:35:22.012389
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-from sqlalchemy.dialects import mysql
+-
+-# revision identifiers, used by Alembic.
+-revision = 'ea5b6a651855'
+-down_revision = '49f11dc4a9b3'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('active', sa.Boolean(), nullable=True))
+-    op.drop_column('user', 'status')
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('status', mysql.TINYINT(display_width=1), autoincrement=False, nullable=True))
+-    op.drop_column('user', 'active')
+-    # ### end Alembic commands ###
+Index: livro_banco_de_dados.sql
+===================================================================
+diff --git a/livro_banco_de_dados.sql b/livro_banco_de_dados.sql
+deleted file mode 100644
+--- a/livro_banco_de_dados.sql	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,178 +0,0 @@
+--- MySQL dump 10.13  Distrib 5.7.25, for Linux (x86_64)
+---
+--- Host: localhost    Database: livro_flask
+--- ------------------------------------------------------
+--- Server version	5.7.25-0ubuntu0.18.04.2
+-
+-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+-/*!40101 SET NAMES utf8 */;
+-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+-/*!40103 SET TIME_ZONE='+00:00' */;
+-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+-
+---
+--- Table structure for table `alembic_version`
+---
+-
+-DROP TABLE IF EXISTS `alembic_version`;
+-/*!40101 SET @saved_cs_client     = @@character_set_client */;
+-/*!40101 SET character_set_client = utf8 */;
+-CREATE TABLE `alembic_version` (
+-  `version_num` varchar(32) NOT NULL,
+-  PRIMARY KEY (`version_num`)
+-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+-/*!40101 SET character_set_client = @saved_cs_client */;
+-
+---
+--- Dumping data for table `alembic_version`
+---
+-
+-LOCK TABLES `alembic_version` WRITE;
+-/*!40000 ALTER TABLE `alembic_version` DISABLE KEYS */;
+-INSERT INTO `alembic_version` VALUES ('c0e7f698ff99');
+-/*!40000 ALTER TABLE `alembic_version` ENABLE KEYS */;
+-UNLOCK TABLES;
+-
+---
+--- Table structure for table `category`
+---
+-
+-DROP TABLE IF EXISTS `category`;
+-/*!40101 SET @saved_cs_client     = @@character_set_client */;
+-/*!40101 SET character_set_client = utf8 */;
+-CREATE TABLE `category` (
+-  `id` int(11) NOT NULL AUTO_INCREMENT,
+-  `name` varchar(20) NOT NULL,
+-  `description` text,
+-  PRIMARY KEY (`id`),
+-  UNIQUE KEY `name` (`name`)
+-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+-/*!40101 SET character_set_client = @saved_cs_client */;
+-
+---
+--- Dumping data for table `category`
+---
+-
+-LOCK TABLES `category` WRITE;
+-/*!40000 ALTER TABLE `category` DISABLE KEYS */;
+-INSERT INTO `category` VALUES (1,'Calçados','');
+-/*!40000 ALTER TABLE `category` ENABLE KEYS */;
+-UNLOCK TABLES;
+-
+---
+--- Table structure for table `product`
+---
+-
+-DROP TABLE IF EXISTS `product`;
+-/*!40101 SET @saved_cs_client     = @@character_set_client */;
+-/*!40101 SET character_set_client = utf8 */;
+-CREATE TABLE `product` (
+-  `id` int(11) NOT NULL AUTO_INCREMENT,
+-  `name` varchar(20) NOT NULL,
+-  `description` text NOT NULL,
+-  `qtd` int(11) DEFAULT NULL,
+-  `image` text,
+-  `price` decimal(10,2) NOT NULL,
+-  `date_created` datetime NOT NULL,
+-  `last_update` datetime DEFAULT NULL,
+-  `status` int(11) DEFAULT NULL,
+-  `user_created` int(11) NOT NULL,
+-  `category` int(11) NOT NULL,
+-  PRIMARY KEY (`id`),
+-  UNIQUE KEY `name` (`name`),
+-  KEY `category` (`category`),
+-  KEY `user_created` (`user_created`),
+-  CONSTRAINT `product_ibfk_1` FOREIGN KEY (`category`) REFERENCES `category` (`id`),
+-  CONSTRAINT `product_ibfk_2` FOREIGN KEY (`user_created`) REFERENCES `user` (`id`)
+-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8;
+-/*!40101 SET character_set_client = @saved_cs_client */;
+-
+---
+--- Dumping data for table `product`
+---
+-
+-LOCK TABLES `product` WRITE;
+-/*!40000 ALTER TABLE `product` DISABLE KEYS */;
+-INSERT INTO `product` VALUES (1,'Tênis','Calçado',20,'',149.90,'2019-03-02 19:32:00','2019-03-02 19:32:00',1,2,1),(2,'Sapato Social','Calçado',40,'',249.90,'2019-03-02 21:17:00','2019-03-02 21:20:26',1,2,1),(3,'Sapatênis','Calçado',200,NULL,350.00,'2019-03-04 12:09:42','2019-03-02 21:20:26',1,2,1),(4,'Sandália','Calçado',30,'',300.00,'2019-03-04 22:53:00','2019-03-04 22:53:00',1,2,1),(5,'Chinelo','Calçado',40,'',1900.00,'2019-03-04 22:54:00','2019-03-04 22:54:00',1,2,1);
+-/*!40000 ALTER TABLE `product` ENABLE KEYS */;
+-UNLOCK TABLES;
+-
+---
+--- Table structure for table `role`
+---
+-
+-DROP TABLE IF EXISTS `role`;
+-/*!40101 SET @saved_cs_client     = @@character_set_client */;
+-/*!40101 SET character_set_client = utf8 */;
+-CREATE TABLE `role` (
+-  `id` int(11) NOT NULL AUTO_INCREMENT,
+-  `name` varchar(40) NOT NULL,
+-  PRIMARY KEY (`id`),
+-  UNIQUE KEY `name` (`name`)
+-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
+-/*!40101 SET character_set_client = @saved_cs_client */;
+-
+---
+--- Dumping data for table `role`
+---
+-
+-LOCK TABLES `role` WRITE;
+-/*!40000 ALTER TABLE `role` DISABLE KEYS */;
+-INSERT INTO `role` VALUES (1,'Admin'),(4,'Cliente'),(2,'Gerente'),(3,'Logista');
+-/*!40000 ALTER TABLE `role` ENABLE KEYS */;
+-UNLOCK TABLES;
+-
+---
+--- Table structure for table `user`
+---
+-
+-DROP TABLE IF EXISTS `user`;
+-/*!40101 SET @saved_cs_client     = @@character_set_client */;
+-/*!40101 SET character_set_client = utf8 */;
+-CREATE TABLE `user` (
+-  `id` int(11) NOT NULL AUTO_INCREMENT,
+-  `username` varchar(40) NOT NULL,
+-  `email` varchar(120) NOT NULL,
+-  `password` varchar(200) NOT NULL,
+-  `date_created` datetime NOT NULL,
+-  `last_update` datetime DEFAULT NULL,
+-  `role` int(11) NOT NULL,
+-  `active` tinyint(1) DEFAULT NULL,
+-  `recovery_code` varchar(200) DEFAULT NULL,
+-  PRIMARY KEY (`id`),
+-  UNIQUE KEY `email` (`email`),
+-  UNIQUE KEY `username` (`username`),
+-  KEY `role` (`role`),
+-  CONSTRAINT `user_ibfk_1` FOREIGN KEY (`role`) REFERENCES `role` (`id`)
+-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
+-/*!40101 SET character_set_client = @saved_cs_client */;
+-
+---
+--- Dumping data for table `user`
+---
+-
+-LOCK TABLES `user` WRITE;
+-/*!40000 ALTER TABLE `user` DISABLE KEYS */;
+-INSERT INTO `user` VALUES (2,'admin','admin@email.com','$pbkdf2-sha256$29000$KcX439v7P8fYW0vJOad0rg$/V.qcJzGTJ1cygMP5jZzQrJvAPJtZJWwKglQsuzdq5A','2019-03-02 13:33:00','2019-03-10 15:59:55',1,1,'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MiwidXNlcm5hbWUiOiJ0aWFnb2x1aXpycyIsImV4cCI6MTU1MjI0NDQ5Mn0.S0L7LiRIWgNRT3Mf16-g1ZU6azeSF0QINyw8zVzlJyY'),(4,'gerente','gerente@email','$pbkdf2-sha256$29000$HqO0ds55b42RkhJizJkzxg$TCFBWjoWOKuIe7fMWYO5xU0NfdV42zUkkhTSjq78/iA','2019-03-07 17:53:00','2019-03-08 09:23:30',2,1,NULL),(5,'loginsta','logista@email','$pbkdf2-sha256$29000$DSGkVKpV6n2P8b73/p8TQg$Kdg8oXKxqTolgOLOTiaCIqieyonxcdtPhRwbN1yElIs','2019-03-07 17:53:00','2019-03-08 09:23:27',3,1,NULL),(6,'usuario','usuario@email','$pbkdf2-sha256$29000$KcX439v7P8fYW0vJOad0rg$/V.qcJzGTJ1cygMP5jZzQrJvAPJtZJWwKglQsuzdq5A','2019-03-07 17:53:00','2019-04-15 16:22:28',4,1,'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NiwidXNlcm5hbWUiOiJ1c3VhcmlvIiwiZXhwIjoxNTU1MzU2NDI3fQ.Huf6P-pr4qsfLsiVowvm3ZRSsRmNszJmxG_ezD_m2U8');
+-/*!40000 ALTER TABLE `user` ENABLE KEYS */;
+-UNLOCK TABLES;
+-
+---
+--- Dumping routines for database 'livro_flask'
+---
+-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+-
+-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+-
+--- Dump completed on 2019-04-15 18:48:20
+Index: migrations.old/versions/b7b7026e11a6_.py
+===================================================================
+diff --git a/migrations.old/versions/b7b7026e11a6_.py b/migrations.old/versions/b7b7026e11a6_.py
+deleted file mode 100644
+--- a/migrations.old/versions/b7b7026e11a6_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,32 +0,0 @@
+-"""empty message
+-
+-Revision ID: b7b7026e11a6
+-Revises: 6a68f2b6e75a
+-Create Date: 2019-03-02 20:14:35.237330
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-from sqlalchemy.dialects import mysql
+-
+-# revision identifiers, used by Alembic.
+-revision = 'b7b7026e11a6'
+-down_revision = '6a68f2b6e75a'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.alter_column('product', 'last_update',
+-               existing_type=mysql.DATETIME(),
+-               nullable=True)
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.alter_column('product', 'last_update',
+-               existing_type=mysql.DATETIME(),
+-               nullable=False)
+-    # ### end Alembic commands ###
+Index: migrations.old/versions/49f11dc4a9b3_.py
+===================================================================
+diff --git a/migrations.old/versions/49f11dc4a9b3_.py b/migrations.old/versions/49f11dc4a9b3_.py
+deleted file mode 100644
+--- a/migrations.old/versions/49f11dc4a9b3_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,30 +0,0 @@
+-"""empty message
+-
+-Revision ID: 49f11dc4a9b3
+-Revises: ca732ea1bff2
+-Create Date: 2019-03-07 18:29:08.062467
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-from sqlalchemy.dialects import mysql
+-
+-# revision identifiers, used by Alembic.
+-revision = '49f11dc4a9b3'
+-down_revision = 'ca732ea1bff2'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('status', sa.Boolean(), nullable=True))
+-    op.drop_column('user', 'active')
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.add_column('user', sa.Column('active', mysql.TINYINT(display_width=1), autoincrement=False, nullable=True))
+-    op.drop_column('user', 'status')
+-    # ### end Alembic commands ###
+Index: controller/User.py
+===================================================================
+diff --git a/controller/User.py b/controller/User.py
+deleted file mode 100644
+--- a/controller/User.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,147 +0,0 @@
+-from model.User import User
+-
+-from datetime import datetime, timedelta
+-import jwt
+-from config import app_config, app_active
+-
+-config = app_config[app_active]
+-
+-from controller.Email import EmailController
+-
+-class UserController():
+-    def __init__(self):
+-        self.user_model = User()
+-        self.email_controller = EmailController()
+-
+-
+-    def login(self, email, password):
+-        self.user_model.email = email
+-        
+-        result = self.user_model.get_user_by_email()
+-        if result is not None:
+-            res = self.user_model.verify_password(password, result.password) 
+-            if res:
+-                return result
+-            else:
+-                return {}
+-        return {}
+-    
+-    def get_admin_login(self, user_id):
+-        self.user_model.id = user_id
+-
+-        response = self.user_model.get_user_by_id()
+-        return response
+-
+-    def recovery(self, to_email):
+-        self.user_model.email = to_email
+-        res = self.user_model.get_user_by_email()
+-
+-        if res is not None:
+-            user_id = res.id
+-            username = res.username
+-
+-            recovery_code = self.generate_auth_token({
+-                'id': user_id,
+-                'username': username
+-            }, exp=5)
+-            recovery_code = recovery_code.decode("utf-8")
+-            try:
+-                self.user_model.id = res.id
+-                res = self.user_model.update({
+-                    'recovery_code': recovery_code
+-                })
+-
+-                if res:
+-                    content_text = 'Olá %s. Para realizar a alteração de senha, você precisa acessar a seguinte url: %snew-password/%s' % (username, config.URL_MAIN, recovery_code)
+-                else:
+-                    return {
+-                       'status_code' : 401,
+-                        'body' : 'Erro ao gerar código de envio',
+-                    }
+-
+-            except:
+-                return {
+-                    'status_code' : 401,
+-                    'body' : 'Erro ao gerar código de envio',
+-                }
+-
+-            try:
+-                result = self.email_controller.send_email(to_email, 'Recuperação de senha', content_text)
+-            except:
+-                return {
+-                    'status_code' : 401,
+-                    'body' : 'Erro no serviço de e-mail. Por favor. Entre em contato com o administrador.',
+-                }
+-        else:
+-            result =  {
+-                    'status_code' : 401,
+-                    'body' : 'Usuário inexistente',
+-            }
+-
+-        return result 
+-
+-    def get_user_by_recovery(self, recovery_password):
+-        self.user_model.recovery_code = recovery_password
+-        return self.user_model.get_user_by_recovery()
+-
+-    def new_password(self, user_id, password):
+-        self.user_model.set_password(password)
+-        self.user_model.id = user_id
+-
+-        return self.user_model.update({
+-            'password': self.user_model.password
+-        })
+-
+-    def get_user_by_id(self, user_id):    
+-        result = {}
+-        try:
+-            self.user_model.id = user_id
+-            res = self.user_model.get_user_by_id()
+-            result = {
+-                'id': res.id,
+-                'name': res.username,
+-                'email': res.email,
+-                'date_created': res.date_created
+-            }
+-
+-            status = 200
+-
+-        except Exception as e:
+-            print(e)
+-            result = []
+-            status = 400
+-        finally:
+-            return {
+-                'result': result,
+-                'status': status
+-            }
+-
+-    def verify_auth_token(self, access_token):
+-        status = 401    
+-        try:
+-            jwt.decode(access_token, config.SECRET, algorithm='HS256')
+-            message = 'Token válido'
+-            status = 200
+-        except jwt.ExpiredSignatureError:
+-            message = 'Token expirado, realize um novo login'
+-        except:
+-            message = 'Token inválido'
+-
+-        return {
+-            'message': message,
+-            'status': status
+-        }
+-    
+-    def generate_auth_token(self, data, exp=30, time_exp=False):
+-        if time_exp == True:
+-            date_time = data['exp']
+-        else:
+-            date_time = datetime.utcnow() + timedelta(minutes=exp)
+-
+-        dict_jwt = {
+-            'id': data['id'],
+-            'username': data['username'],
+-            "exp": date_time
+-        }
+-        access_token = jwt.encode(dict_jwt, config.SECRET, algorithm='HS256')
+-        return access_token
+\ No newline at end of file
+Index: migrations.old/env.py
+===================================================================
+diff --git a/migrations.old/env.py b/migrations.old/env.py
+deleted file mode 100644
+--- a/migrations.old/env.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,95 +0,0 @@
+-from __future__ import with_statement
+-
+-import logging
+-from logging.config import fileConfig
+-
+-from sqlalchemy import engine_from_config
+-from sqlalchemy import pool
+-
+-from alembic import context
+-
+-# this is the Alembic Config object, which provides
+-# access to the values within the .ini file in use.
+-config = context.config
+-
+-# Interpret the config file for Python logging.
+-# This line sets up loggers basically.
+-fileConfig(config.config_file_name)
+-logger = logging.getLogger('alembic.env')
+-
+-# add your model's MetaData object here
+-# for 'autogenerate' support
+-# from myapp import mymodel
+-# target_metadata = mymodel.Base.metadata
+-from flask import current_app
+-config.set_main_option('sqlalchemy.url',
+-                       current_app.config.get('SQLALCHEMY_DATABASE_URI'))
+-target_metadata = current_app.extensions['migrate'].db.metadata
+-
+-# other values from the config, defined by the needs of env.py,
+-# can be acquired:
+-# my_important_option = config.get_main_option("my_important_option")
+-# ... etc.
+-
+-
+-def run_migrations_offline():
+-    """Run migrations in 'offline' mode.
+-
+-    This configures the context with just a URL
+-    and not an Engine, though an Engine is acceptable
+-    here as well.  By skipping the Engine creation
+-    we don't even need a DBAPI to be available.
+-
+-    Calls to context.execute() here emit the given string to the
+-    script output.
+-
+-    """
+-    url = config.get_main_option("sqlalchemy.url")
+-    context.configure(
+-        url=url, target_metadata=target_metadata, literal_binds=True
+-    )
+-
+-    with context.begin_transaction():
+-        context.run_migrations()
+-
+-
+-def run_migrations_online():
+-    """Run migrations in 'online' mode.
+-
+-    In this scenario we need to create an Engine
+-    and associate a connection with the context.
+-
+-    """
+-
+-    # this callback is used to prevent an auto-migration from being generated
+-    # when there are no changes to the schema
+-    # reference: http://alembic.zzzcomputing.com/en/latest/cookbook.html
+-    def process_revision_directives(context, revision, directives):
+-        if getattr(config.cmd_opts, 'autogenerate', False):
+-            script = directives[0]
+-            if script.upgrade_ops.is_empty():
+-                directives[:] = []
+-                logger.info('No changes in schema detected.')
+-
+-    connectable = engine_from_config(
+-        config.get_section(config.config_ini_section),
+-        prefix='sqlalchemy.',
+-        poolclass=pool.NullPool,
+-    )
+-
+-    with connectable.connect() as connection:
+-        context.configure(
+-            connection=connection,
+-            target_metadata=target_metadata,
+-            process_revision_directives=process_revision_directives,
+-            **current_app.extensions['migrate'].configure_args
+-        )
+-
+-        with context.begin_transaction():
+-            context.run_migrations()
+-
+-
+-if context.is_offline_mode():
+-    run_migrations_offline()
+-else:
+-    run_migrations_online()
+Index: .idea/inspectionProfiles/Project_Default.xml
+===================================================================
+diff --git a/.idea/inspectionProfiles/Project_Default.xml b/.idea/inspectionProfiles/Project_Default.xml
+deleted file mode 100644
+--- a/.idea/inspectionProfiles/Project_Default.xml	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,16 +0,0 @@
+-<component name="InspectionProjectProfileManager">
+-  <profile version="1.0">
+-    <option name="myName" value="Project Default" />
+-    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+-      <option name="ignoredPackages">
+-        <value>
+-          <list size="3">
+-            <item index="0" class="java.lang.String" itemvalue="ipdb" />
+-            <item index="1" class="java.lang.String" itemvalue="pkg-resources" />
+-            <item index="2" class="java.lang.String" itemvalue="Flask-MySQLdb" />
+-          </list>
+-        </value>
+-      </option>
+-    </inspection_tool>
+-  </profile>
+-</component>
+\ No newline at end of file
+Index: migrations.old/versions/6a68f2b6e75a_.py
+===================================================================
+diff --git a/migrations.old/versions/6a68f2b6e75a_.py b/migrations.old/versions/6a68f2b6e75a_.py
+deleted file mode 100644
+--- a/migrations.old/versions/6a68f2b6e75a_.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,32 +0,0 @@
+-"""empty message
+-
+-Revision ID: 6a68f2b6e75a
+-Revises: e4aa835ece34
+-Create Date: 2019-03-02 13:33:37.256561
+-
+-"""
+-from alembic import op
+-import sqlalchemy as sa
+-from sqlalchemy.dialects import mysql
+-
+-# revision identifiers, used by Alembic.
+-revision = '6a68f2b6e75a'
+-down_revision = 'e4aa835ece34'
+-branch_labels = None
+-depends_on = None
+-
+-
+-def upgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.alter_column('user', 'last_update',
+-               existing_type=mysql.DATETIME(),
+-               nullable=True)
+-    # ### end Alembic commands ###
+-
+-
+-def downgrade():
+-    # ### commands auto generated by Alembic - please adjust! ###
+-    op.alter_column('user', 'last_update',
+-               existing_type=mysql.DATETIME(),
+-               nullable=False)
+-    # ### end Alembic commands ###
+Index: run.py
+===================================================================
+diff --git a/run.py b/run.py
+deleted file mode 100644
+--- a/run.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,10 +0,0 @@
+-import sys
+-from app import create_app
+-from config import app_config, app_active
+-
+-config = app_config[app_active]
+-config.APP = create_app(app_active)
+-
+-if __name__ == '__main__':
+-    config.APP.run(host=config.IP_HOST, port=config.PORT_HOST)
+-    reload(sys)
+Index: model/Product.py
+===================================================================
+diff --git a/model/Product.py b/model/Product.py
+deleted file mode 100644
+--- a/model/Product.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,68 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from flask_sqlalchemy import SQLAlchemy
+-from sqlalchemy import func, desc, asc, distinct, and_, or_
+-from sqlalchemy.orm import relationship
+-from config import app_active, app_config
+-from model.User import User
+-from model.Category import Category
+-
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-class Product(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=False)
+-    qtd = db.Column(db.Integer, nullable=True, default=0)
+-    image = db.Column(db.Text(), nullable=True)
+-    price = db.Column(db.Numeric(10,2), nullable=False)
+-    date_created = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+-    last_update = db.Column(db.DateTime(6), onupdate=db.func.current_timestamp(), nullable=False)
+-    status = db.Column(db.Integer, default=1, nullable=True)
+-    user_created = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+-    category = db.Column(db.Integer, db.ForeignKey(Category.id), nullable=False)  
+-    usuario = relationship(User)  
+-    categoria = relationship(Category)
+-
+-    def get_all(self, limit):
+-        try:
+-            if limit is None:
+-                res = db.session.query(Product).all()
+-            else:
+-                res = db.session.query(Product).order_by(Product.date_created).limit(limit).all()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_total_products(self):
+-        try:
+-            res = db.session.query(func.count(Product.id)).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_last_products(self):
+-        try:
+-            res = db.session.query(Product).order_by(Product.date_created).limit(5).all()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_product_by_id(self):
+-        try:
+-            res = db.session.query(Product).filter(Product.id==self.id).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+\ No newline at end of file
+Index: model/Missao.py
+===================================================================
+diff --git a/model/Missao.py b/model/Missao.py
+deleted file mode 100644
+--- a/model/Missao.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,101 +0,0 @@
+-
+-
+-# -*- coding: utf-8 -*-
+-from flask_sqlalchemy import SQLAlchemy
+-from sqlalchemy import func, desc, asc, distinct, and_, or_
+-from sqlalchemy.orm import relationship
+-from config import app_active, app_config
+-from model.User import User
+-from model.Category import Category
+-from model.Motorista import Motorista
+-from model.Viatura import Viatura
+-from datetime import datetime
+-#from controller.Missao import MissaoController
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-def logado():
+-    from admin.Views import User
+-    return User
+-class Missao(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    ficha = db.Column(db.Integer, unique=False, nullable=True)
+-    siloms = db.Column(db.Integer, unique=True, nullable=False)
+-    viatura = db.Column(db.String(50), unique=True, nullable=False)
+-    natureza_servico = db.Column(db.Text(), nullable=False)
+-    km_saida = db.Column(db.Numeric(10,2), nullable=False)
+-    km_chegada = db.Column(db.Numeric(10,2), nullable=True)
+-    data_saida = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+-    data_chegada = db.Column(db.DateTime(8), default=db.func.current_timestamp(), nullable=False)
+-    status = db.Column(db.Integer, default=1, nullable=True)
+-    user_created = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+-    motorista = db.Column(db.Integer, db.ForeignKey(Motorista.id), nullable=False)
+-    viatura = db.Column(db.Integer, db.ForeignKey(Viatura.id), nullable=False)
+-    usuario = relationship(User, foreign_keys=None, backref=None)
+-    motoristas = relationship(Motorista)
+-    viaturas = relationship(Viatura)
+-
+-    #missao_controller = MissaoController()
+-    def get_all(self, limit):
+-        try:
+-            if limit is None:
+-                res = db.session.query(Missao).all()
+-            else:
+-                res = db.session.query(Missao).order_by(Missao.data_saida).limit(limit).all()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-
+-            return res
+-
+-    def get_missao_motorista_all(self):
+-        try:
+-            res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(
+-                Missao.motorista == Motorista.id).all()
+-            print(res)
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-
+-            return res
+-
+-    def get_total_missao(self):
+-        try:
+-            res = db.session.query(func.count(Missao.id)).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            print(res)
+-            return res
+-
+-    def get_last_missao(self):
+-        try:
+-            res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(
+-                Missao.motorista == Motorista.id).all()
+-
+-            print(res)
+-            #res = db.session.query(Missao).order_by(Missao.data_saida).limit(5).all()
+-
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_missao_by_id(self):
+-        try:
+-            res = db.session.query(Missao).filter(Missao.id==self.id).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+Index: model/Motorista.py
+===================================================================
+diff --git a/model/Motorista.py b/model/Motorista.py
+deleted file mode 100644
+--- a/model/Motorista.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,36 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from sqlalchemy import func
+-from flask_sqlalchemy import SQLAlchemy
+-from config import app_active, app_config
+-from model.User import User
+-
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-class Motorista(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=True)
+-
+-    def __repr__(self):
+-        return self.name
+-
+-    def get_total_motorista(self):
+-        try:
+-            res = db.session.query(func.count(Motorista.id)).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+-
+-    def get_motorista(self):
+-        try:
+-            res = db.session.query(Motorista).all()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+\ No newline at end of file
+Index: model/Viatura.py
+===================================================================
+diff --git a/model/Viatura.py b/model/Viatura.py
+deleted file mode 100644
+--- a/model/Viatura.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,26 +0,0 @@
+-# -*- coding: utf-8 -*-
+-from sqlalchemy import func
+-from flask_sqlalchemy import SQLAlchemy
+-from config import app_active, app_config
+-from model.User import User
+-
+-config = app_config[app_active]
+-db = SQLAlchemy(config.APP)
+-
+-class Viatura(db.Model):
+-    id = db.Column(db.Integer, primary_key=True)
+-    name = db.Column(db.String(20), unique=True, nullable=False)
+-    description = db.Column(db.Text(), nullable=True)
+-
+-    def __repr__(self):
+-        return self.name
+-
+-    def get_total_viatura(self):
+-        try:
+-            res = db.session.query(func.count(Viatura.id)).first()
+-        except Exception as e:
+-            res = []
+-            print(e)
+-        finally:
+-            db.session.close()
+-            return res
+\ No newline at end of file
+Index: .idea/modules.xml
+===================================================================
+diff --git a/.idea/modules.xml b/.idea/modules.xml
+deleted file mode 100644
+--- a/.idea/modules.xml	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ /dev/null	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
+@@ -1,8 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<project version="4">
+-  <component name="ProjectModuleManager">
+-    <modules>
+-      <module fileurl="file://$PROJECT_DIR$/.idea/livro_flask.iml" filepath="$PROJECT_DIR$/.idea/livro_flask.iml" />
+-    </modules>
+-  </component>
+-</project>
+\ No newline at end of file
+Index: controller/Missao.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from datetime import datetime\n\nfrom model.Missao import Missao\nfrom model.Motorista import Motorista\nclass MissaoController():\n    def __init__(self):\n        self.missao_model = Missao()\n        self.motorista_model = Motorista()\n    def get_missao(self):\n        result = []\n        try:\n            res = self.missao_model.get_missao_motorista_all()\n\n            print(res, 'teste....')\n\n            for r in res:\n                missao = r[0]\n                motorista = r[1]\n                viatura = r[2]\n\n                result.append({\n\n                     'viatura': missao.viatura,\n                     'missao': missao.natureza_servico,\n                     'km_saida': str(missao.km_saida),\n                     'km_chegada': str(missao.km_chegada),\n                     'ficha': missao.ficha,\n                     #: datetime.strptime(r.data_saida, \"%d/%m/%Y\"),\n                     'data_saida': missao.data_saida.strftime('%d/%m/%Y :: %H:%M'),\n                     'data_chegada': missao.data_chegada.strftime('%d/%m/%Y :: %H:%M'),\n                     'motorista': motorista,\n                     'viatura': viatura,\n\n\n                })\n            status = 200\n\n        except Exception as e:\n            print(e)\n            result = []\n            status = 400\n        finally:\n            return {\n                'result': result,\n                'status': status\n            }\n\n\n        \n    def get_missao_by_id(self, missao_id):\n        result = {}\n        try:\n            self.missao_model.id = missao_id\n            res = self.missao_model.get_missao_by_id()\n            \n            result = {\n                'id': res.id,\n                'viatura': res.viatura,\n                'natureza_servico': res.natureza_servico,\n                'km_saida': str(res.km_saida),\n                'data_saida': datetime.strptime(res.data_saida, \"%d/%m/%Y %H:%M:%S\"),\n               # 'data_saida': res.data_saida,\n                'motorista': str(res.motorista),\n                'viatura': str(res.viatura),\n                'data_chegada': res.data_chegada,\n\n            }\n\n            status = 200\n        except Exception as e:\n            print(e)\n            result = []\n            status = 400\n        finally:\n            return {\n                'result': result,\n                'status': status\n            }
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/controller/Missao.py b/controller/Missao.py
+--- a/controller/Missao.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ b/controller/Missao.py	(date 1657207629393)
+@@ -26,8 +26,8 @@
+                      'km_chegada': str(missao.km_chegada),
+                      'ficha': missao.ficha,
+                      #: datetime.strptime(r.data_saida, "%d/%m/%Y"),
+-                     'data_saida': missao.data_saida.strftime('%d/%m/%Y :: %H:%M'),
+-                     'data_chegada': missao.data_chegada.strftime('%d/%m/%Y :: %H:%M'),
++                     'data_saida': missao.data_saida.strftime('%d/%m/%Y  %H:%M'),
++                     'data_chegada': missao.data_chegada.strftime('%d/%m/%Y  %H:%M'),
+                      'motorista': motorista,
+                      'viatura': viatura,
+ 
+@@ -52,17 +52,25 @@
+         try:
+             self.missao_model.id = missao_id
+             res = self.missao_model.get_missao_by_id()
++
++            for r in res:
++                missao = r[0]
++                motorista = r[1]
++                print(motorista)
++                viatura = r[2]
++
+             
+             result = {
+-                'id': res.id,
++
+                 'viatura': res.viatura,
+-                'natureza_servico': res.natureza_servico,
++                'missao': res.natureza_servico,
+                 'km_saida': str(res.km_saida),
+-                'data_saida': datetime.strptime(res.data_saida, "%d/%m/%Y %H:%M:%S"),
+-               # 'data_saida': res.data_saida,
+-                'motorista': str(res.motorista),
+-                'viatura': str(res.viatura),
+-                'data_chegada': res.data_chegada,
++                'km_chegada': str(res.km_chegada),
++                'ficha': res.ficha,
++                'data_saida': res.data_saida.strftime('%d/%m/%Y  %H:%M'),
++                'data_chegada': res.data_chegada.strftime('%d/%m/%Y  %H:%M'),
++                'motorista': motorista,
++                'viatura': viatura,
+ 
+             }
+ 
+Index: templates/home_admin.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>{% extends admin_base_template %}\n{% block body %}\n\n<div class=\"row mb-3\">\n    <div class=\"col-xl-4 col-lg-4 col-md-4 col-sm-4 col-xs-12 py-2\">\n        <div class=\"card bg-success text-white h-100\">\n            <div class=\"card-body bg-success\">\n                <div class=\"rotate\">\n                    <i class=\"fa fa-user fa-4x\"></i>\n                </div>\n                <h6 class=\"text-uppercase\">Usuários Cadastrados</h6>\n                <h1 class=\"display-4\">{{report.users}}</h1>\n            </div>\n        </div>\n    </div>\n    <div class=\"col-xl-4 col-lg-4 col-md-4 col-sm-4 col-xs-12 py-2\">\n        <div class=\"card text-white bg-info h-100\">\n            <div class=\"card-body bg-info\">\n                <div class=\"rotate\">\n                    <i class=\"fa fa-list fa-4x\"></i>\n                </div>\n                <h6 class=\"text-uppercase\">Viatura Disponível</h6>\n                <h1 class=\"display-4\">{{report.viatura}}</h1>\n            </div>\n        </div>\n    </div>\n    <div class=\"col-xl-4 col-lg-4 col-md-4 col-sm-4 col-xs-12 py-2\">\n        <div class=\"card text-white bg-warning h-100\">\n            <div class=\"card-body bg-warning\">\n                <div class=\"rotate\">\n                    <i class=\"fa fa-briefcase fa-4x\"></i>\n                </div>\n                <h6 class=\"text-uppercase\">Missão</h6>\n                <h1 class=\"display-4\">{{report.missao}}</h1>\n            </div>\n        </div>\n    </div>\n</div>\n\n<div class=\"row\">\n    <div class=\"col-xl-12 col-lg-12 col-md-12 col-sm-12 col-xs-12\">\n        <h3>Últimas missões</h3>\n        <table class=\"table table-striped table-hover \">\n          <thead>\n            <tr>\n              <th>Ficha</th>\n              <th>Motorista</th>\n              <th>Viatura</th>\n              <th>Missão</th>\n              <th>Data/Hora data Saída</th>\n            </tr>\n          </thead>\n          <tbody>\n            {% for missao in missao_controller.result %}\n                <tr>\n                  <td>{{missao.ficha}}</td>\n                  <td>{{missao.motorista}}</td>\n                  <td>{{missao.viatura}}</td>\n                  <td>{{missao.missao }}</td>\n                  <td>{{missao.data_saida}}</td>\n                </tr>\n            {% endfor %}\n          </tbody>\n        </table>\n    </div>\n</div>\n\n{% endblock %}
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/templates/home_admin.html b/templates/home_admin.html
+--- a/templates/home_admin.html	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ b/templates/home_admin.html	(date 1657207629389)
+@@ -47,7 +47,7 @@
+               <th>Motorista</th>
+               <th>Viatura</th>
+               <th>Missão</th>
+-              <th>Data/Hora data Saída</th>
++              <th>Data/Hora Data Saída</th>
+             </tr>
+           </thead>
+           <tbody>
+Index: Missao.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\n\n# -*- coding: utf-8 -*-\nfrom flask_sqlalchemy import SQLAlchemy\nfrom sqlalchemy import func, desc, asc, distinct, and_, or_\nfrom sqlalchemy.orm import relationship\nfrom config import app_active, app_config\nfrom model.User import User\nfrom model.Motorista import Motorista\nfrom model.Viatura import Viatura\n\nconfig = app_config[app_active]\ndb = SQLAlchemy(config.APP)\n\nclass Missao(db.Model):\n    id = db.Column(db.Integer, primary_key=True)\n    ficha = db.Column(db.Integer, unique=False, nullable=True)\n    siloms = db.Column(db.Integer, unique=True, nullable=False)\n    viatura = db.Column(db.String(50), unique=True, nullable=False)\n    natureza_servico = db.Column(db.Text(), nullable=False)\n    km_saida = db.Column(db.Numeric(10,2), nullable=False)\n    km_chegada = db.Column(db.Numeric(10,2), nullable=True)\n    data_saida = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)\n    data_chegada = db.Column(db.DateTime(8), default=db.func.current_timestamp(), nullable=False)\n    status = db.Column(db.Integer, default=1, nullable=True)\n    user_created = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)\n    motorista = db.Column(db.Integer, db.ForeignKey(Motorista.id), nullable=False)\n    viatura = db.Column(db.Integer, db.ForeignKey(Viatura.id), nullable=False)\n    usuario = relationship(User)\n    motoristas = relationship(Motorista)\n    viaturas = relationship(Viatura)\n\n    #missao_controller = MissaoController()\n    def get_all(self, limit):\n        try:\n            if limit is None:\n                res = db.session.query(Missao).all()\n            else:\n                res = db.session.query(Missao).order_by(Missao.data_saida).limit(limit).all()\n        except Exception as e:\n            res = []\n            print(e)\n        finally:\n            db.session.close()\n\n            return res\n\n    def get_missao_motorista_all(self):\n        try:\n            #res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(\n            #    Missao.motorista == Motorista.id).all()\n            res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(\n                            Missao.motorista == Motorista.id, Missao.status == '1').all() #ULTIMAS MISSAO EM ANDAMENTO\n            print(res)\n        except Exception as e:\n            res = []\n            print(e)\n        finally:\n            db.session.close()\n\n            return res\n\n    def get_total_missao(self):\n        try:\n            #res = db.session.query(func.count(Missao.id)).first()\n            res = db.session.query(func.count(Missao.id)).filter(Missao.status == '1').first() # MISSAO EM ANDAMENTO\n        except Exception as e:\n            res = []\n            print(e)\n        finally:\n            db.session.close()\n            print(res)\n            return res\n\n    def get_last_missao(self):\n        try:\n            res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(\n                Missao.motorista == Motorista.id).all()\n\n            print(res)\n            #res = db.session.query(Missao).order_by(Missao.data_saida).limit(5).all()\n\n        except Exception as e:\n            res = []\n            print(e)\n        finally:\n            db.session.close()\n            return res\n\n    def get_missao_by_id(self):\n        try:\n            res = db.session.query(Missao).filter(Missao.id==self.id).first()\n        except Exception as e:\n            res = []\n            print(e)\n        finally:\n            db.session.close()\n            return res\n\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Missao.py b/Missao.py
+--- a/Missao.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ b/Missao.py	(date 1657207629405)
+@@ -14,7 +14,7 @@
+ 
+ class Missao(db.Model):
+     id = db.Column(db.Integer, primary_key=True)
+-    ficha = db.Column(db.Integer, unique=False, nullable=True)
++    ficha = db.Column(db.Integer, unique=True,  nullable=True)
+     siloms = db.Column(db.Integer, unique=True, nullable=False)
+     viatura = db.Column(db.String(50), unique=True, nullable=False)
+     natureza_servico = db.Column(db.Text(), nullable=False)
+@@ -23,7 +23,7 @@
+     data_saida = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)
+     data_chegada = db.Column(db.DateTime(8), default=db.func.current_timestamp(), nullable=False)
+     status = db.Column(db.Integer, default=1, nullable=True)
+-    user_created = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
++    user_created = db.Column(db.Integer,db.ForeignKey(User.id), bake_queries=False, nullable=False)
+     motorista = db.Column(db.Integer, db.ForeignKey(Motorista.id), nullable=False)
+     viatura = db.Column(db.Integer, db.ForeignKey(Viatura.id), nullable=False)
+     usuario = relationship(User)
+@@ -50,7 +50,11 @@
+             #res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(
+             #    Missao.motorista == Motorista.id).all()
+             res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(
++<<<<<<< HEAD:Missao.py
+                             Missao.motorista == Motorista.id, Missao.status == '1').all() #ULTIMAS MISSAO EM ANDAMENTO
++=======
++                Missao.motorista == Motorista.id, Missao.status == '1').all()  # ULTIMAS MISSAO EM ANDAMENTO
++>>>>>>> develop:model/Missao.py
+             print(res)
+         except Exception as e:
+             res = []
+@@ -62,8 +66,12 @@
+ 
+     def get_total_missao(self):
+         try:
++<<<<<<< HEAD:Missao.py
+             #res = db.session.query(func.count(Missao.id)).first()
+             res = db.session.query(func.count(Missao.id)).filter(Missao.status == '1').first() # MISSAO EM ANDAMENTO
++=======
++            res = db.session.query(func.count(Missao.id)).filter(Missao.status == '1').first()  # MISSAO EM ANDAMENTO
++>>>>>>> develop:model/Missao.py
+         except Exception as e:
+             res = []
+             print(e)
+@@ -76,10 +84,7 @@
+         try:
+             res = db.session.query(Missao, Motorista, Viatura).join(Motorista, Viatura).filter(
+                 Missao.motorista == Motorista.id).all()
+-
+             print(res)
+-            #res = db.session.query(Missao).order_by(Missao.data_saida).limit(5).all()
+-
+         except Exception as e:
+             res = []
+             print(e)
+@@ -89,7 +94,7 @@
+ 
+     def get_missao_by_id(self):
+         try:
+-            res = db.session.query(Missao).filter(Missao.id==self.id).first()
++            res = db.session.query(Missao).filter(Missao.id == self.id).first()
+         except Exception as e:
+             res = []
+             print(e)
+Index: User.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># -*- coding: utf-8 -*-\nfrom flask_sqlalchemy import SQLAlchemy\nfrom sqlalchemy import func\nfrom sqlalchemy.orm import relationship\nfrom config import app_active, app_config\nfrom passlib.hash import pbkdf2_sha256\nfrom flask_login import UserMixin\n\nfrom model.Role import Role\n\nconfig = app_config[app_active]\ndb = SQLAlchemy(config.APP)\n\nclass User(db.Model, UserMixin):\n    id = db.Column(db.Integer, primary_key=True)\n    username = db.Column(db.String(40), unique=True, nullable=False)\n    email = db.Column(db.String(120), unique=True, nullable=False)\n    password = db.Column(db.String(200), nullable=False)\n    date_created = db.Column(db.DateTime(6), default=db.func.current_timestamp(), nullable=False)\n    last_update = db.Column(db.DateTime(6), onupdate=db.func.current_timestamp(), nullable=True)\n    recovery_code = db.Column(db.String(200), nullable=True)\n    active = db.Column(db.Boolean(), default=1, nullable=True)\n    role = db.Column(db.Integer, db.ForeignKey(Role.id), nullable=False)\n    funcao = relationship(Role)\n    \n    def __repr__(self):\n        return '%s - %s' % (self.id, self.username)\n\n    def get_user_by_email(self):\n        try:\n            res = db.session.query(User).filter(User.email==self.email).first()\n        except Exception as e:\n            res = None\n            print(e)\n        finally:\n            db.session.close()\n            return res\n\n    def get_user_by_id(self):\n        try:\n            res = db.session.query(User).filter(User.id==self.id).first()\n        except Exception as e:\n            res = None\n            print(e)\n        finally:\n            db.session.close()\n            return res\n\n    def get_user_by_recovery(self):\n        try:\n            res = db.session.query(User).filter(User.recovery_code==self.recovery_code).first()\n        except Exception as e:\n            res = None\n            print(e)\n        finally:\n            db.session.close()\n            return res\n\n    def get_users(self):\n        try:\n            return User.query.all()\n        except Exception as e:\n            print(\"Erro ao listar usuários.\")\n            return []  \n\n    def save(self):\n        try:\n            db.session.add(self)\n            db.session.commit()\n            return True\n        except Exception as e:\n            db.session.rollback()\n            return False\n\n    def update(self, obj):\n        try:\n            res = db.session.query(User).filter(User.id == self.id).update(obj)\n            db.session.commit()\n            return True\n        except Exception as e:\n            print(e)\n            db.session.rollback()\n            return False\n\n    def delete(self):\n        try:\n            User.query.filter(User.id==self.id).delete()\n            return True\n        except Exception as e:\n            return False\n\n    def set_password(self, password):\n        self.password = pbkdf2_sha256.hash(password)\n\n    def hash_password(self, password):\n        try:\n            return pbkdf2_sha256.hash(password)\n        except Exception as e:\n            print(\"Erro ao criptografar senha %s\" % e)\n\n    def verify_password(self, password_no_hash, password_database):\n        try:\n            return pbkdf2_sha256.verify(password_no_hash, password_database)\n        except ValueError:\n            return False\n\n    def get_total_users(self):\n        try:\n            #res = db.session.query(func.count(User.id)).first()\n            res = db.session.query(func.count(User.id)).filter(User.active == 1).first() #USUARIO ATIVOS\n        except Exception as e:\n            res = []\n            print(e)\n        finally:\n            db.session.close()\n            return res
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/User.py b/User.py
+--- a/User.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ b/User.py	(date 1657207629405)
+@@ -64,7 +64,9 @@
+             return []  
+ 
+     def save(self):
++
+         try:
++
+             db.session.add(self)
+             db.session.commit()
+             return True
+@@ -106,11 +108,16 @@
+ 
+     def get_total_users(self):
+         try:
++<<<<<<< HEAD:User.py
+             #res = db.session.query(func.count(User.id)).first()
+             res = db.session.query(func.count(User.id)).filter(User.active == 1).first() #USUARIO ATIVOS
++=======
++            res = db.session.query(func.count(User.id)).filter(User.active == 1).first()  # USUARIO ATIVOS
++>>>>>>> develop:model/User.py
+         except Exception as e:
+             res = []
+             print(e)
+         finally:
+             db.session.close()
+-            return res
+\ No newline at end of file
++            return res
++        ######
+\ No newline at end of file
+Index: app.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># -*- coding: utf-8 -*-\nfrom flask import Flask, request, redirect, render_template, Response, json, abort\nfrom flask_sqlalchemy import SQLAlchemy\nfrom flask_migrate import Migrate\nfrom flask_login import LoginManager, login_user, logout_user\n\nfrom functools import wraps\n\n# config import\nfrom config import app_config, app_active\n\n# controllers\nfrom controller.User import UserController\nfrom controller.Product import ProductController\n\nfrom admin.Admin import start_views\nfrom flask_bootstrap import Bootstrap\n\nconfig = app_config[app_active]\n\ndef create_app(config_name):\n    app = Flask(__name__, template_folder='templates')\n\n    login_manager = LoginManager()\n    login_manager.init_app(app)\n\n    app.secret_key = config.SECRET\n    app.config.from_object(app_config[config_name])\n    app.config.from_pyfile('config.py')\n    app.config['SQLALCHEMY_DATABASE_URI'] = config.SQLALCHEMY_DATABASE_URI\n    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False\n    app.config['FLASK_ADMIN_SWATCH'] = 'paper'\n    db = SQLAlchemy(config.APP)\n    migrate = Migrate(app, db)\n    start_views(app,db)\n    Bootstrap(app)\n\n    db.init_app(app)\n\n    @app.after_request\n    def after_request(response):\n        response.headers.add('Access-Control-Allow-Origin', '*')\n        response.headers.add('Access-Control-Allow-Headers', 'Content-Type')\n        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')\n        return response\n\n    def auth_token_required(f):\n        @wraps(f)\n        def verify_token(*args, **kwargs):\n            user = UserController()\n            try:\n                result = user.verify_auth_token(request.headers['access_token'])\n                if result['status'] == 200:\n                    return f(*args, **kwargs)\n                else:\n                    abort(result['status'], result['message'])\n            except KeyError as e:\n                abort(401, 'Você precisa enviar um token de acesso')\n\n        return verify_token\n\n    @app.route('/')\n    def index():\n        return 'Meu primeiro run'\n\n    @app.route('/login/')\n    def login():\n        return render_template('login.html', data={'status': 200, 'msg': None, 'type': None})\n\n    @app.route('/login/', methods=['POST'])\n    def login_post():\n        user = UserController()\n\n        email = request.form['email']\n        password = request.form['password']\n\n        result = user.login(email, password)\n\n        if result:\n            if result.role == 4:\n                return render_template('login.html', data={'status': 401, 'msg': 'Seu usuário não tem permissão para acessar o admin', 'type':2})\n            else:\n                login_user(result)\n                return redirect('/admin')\n        else:\n            return render_template('login.html', data={'status': 401, 'msg': 'Dados de usuário incorretos', 'type': 1})\n\n    @app.route('/recovery-password/')\n    def recovery_password():\n        # Capítulo 11\n        return render_template('recovery.html', data={'status': 200, 'msg': None, 'type': None})\n\n    @app.route('/recovery-password/', methods=['POST'])\n    def send_recovery_password():\n        user = UserController()\n\n        result = user.recovery(request.form['email'])\n\n        # Capítulo 11 - Alterar parâmetros\n        if result['status_code'] == 200 or result['status_code'] == 202:\n            return render_template('recovery.html', data={'status': result['status_code'], 'msg': 'Você receberá um e-mail em sua caixa para alteração de senha.', 'type': 3})\n        else:\n            return render_template('recovery.html', data={'status': result['status_code'], 'msg': result['body'], 'type': 1})\n    \n    @app.route('/new-password/<recovery_code>')\n    def new_password(recovery_code):\n        user = UserController()\n        result = user.verify_auth_token(recovery_code)\n        \n        if result['status'] == 200:\n            res = user.get_user_by_recovery(str(recovery_code))\n            if res is not None:\n                return render_template('new_password.html', data={'status': result['status'], 'msg': None, 'type': None, 'user_id': res.id})\n            else:\n                return render_template('recovery.html', data={'status': 400, 'msg': 'Erro ao tentar acessar os dados do usuário. Tente novamente mais tarde.', 'type': 1})\n        else:\n            return render_template('recovery.html', data={'status': result['status'], 'msg': 'Token expirado ou inválido, solicite novamente a alteração de senha', 'type': 1})\n\n    @app.route('/new-password/', methods=['POST'])\n    def send_new_password():\n        user = UserController()\n        user_id = request.form['user_id']\n        password = request.form['password']\n\n        result = user.new_password(user_id, password)\n\n        if result:\n            return render_template('login.html', data={'status': 200, 'msg': 'Senha alterada com sucesso!', 'type': 3, 'user_id': user_id})\n        else:\n            return render_template('new_password.html', data={'status': 401, 'msg': 'Erro ao alterar senha.', 'type': 1, 'user_id': user_id})\n\n    @app.route('/products/', methods=['GET'])\n    @app.route('/products/<limit>', methods=['GET'])\n    @auth_token_required\n    def get_products(limit=None):\n        header = {\n            'access_token': request.headers['access_token'],\n            \"token_type\": \"JWT\"\n        }\n\n        product = ProductController()\n        response = product.get_products(limit=limit)\n        return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), response['status'], header\n\n    @app.route('/product/<product_id>', methods=['GET'])\n    @auth_token_required\n    def get_product(product_id):\n        header = {\n            'access_token': request.headers['access_token'],\n            \"token_type\": \"JWT\"\n        }\n        \n        product = ProductController()\n        response = product.get_product_by_id(product_id = product_id)\n\n        return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), response['status'], header\n\n    @app.route('/user/<user_id>', methods=['GET'])\n    @auth_token_required\n    def get_user_profile(user_id):\n        header = {\n            'access_token': request.headers['access_token'],\n            \"token_type\": \"JWT\"\n        }\n\n        user = UserController()\n        response = user.get_user_by_id(user_id=user_id)\n\n        return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), response['status'], header\n\n    @app.route('/login_api/', methods=['POST'])\n    def login_api():\n        header = {}\n        user = UserController()\n\n        email = request.json['email']\n        password = request.json['password']\n\n        result = user.login(email, password)\n        code = 401\n        response = {\"message\": \"Usuário não autorizado\", \"result\": []}\n\n        if result:\n            if result.active:\n                result = {\n                    'id': result.id,\n                    'username': result.username,\n                    'email': result.email,\n                    'date_created': result.date_created,\n                    'active': result.active\n                }\n\n                header = {\n                    \"access_token\": user.generate_auth_token(result),\n                    \"token_type\": \"JWT\"\n                }\n                code = 200\n                response[\"message\"] = \"Login realizado com sucesso\"\n                response[\"result\"] = result\n\n        return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), code, header\n    \n    @app.route('/logout')\n    def logout_send():\n        logout_user()\n        return render_template('login.html', data={'status': 200, 'msg': 'Usuário deslogado com sucesso!', 'type':3})\n\n    @login_manager.user_loader\n    def load_user(user_id):\n        user = UserController()\n        return user.get_admin_login(user_id)\n\n    return app\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app.py b/app.py
+--- a/app.py	(revision b69ff416ff1b59e97a087e929759a83cbe0eef5d)
++++ b/app.py	(date 1657207629393)
+@@ -12,7 +12,7 @@
+ # controllers
+ from controller.User import UserController
+ from controller.Product import ProductController
+-
++from controller.Missao import MissaoController
+ from admin.Admin import start_views
+ from flask_bootstrap import Bootstrap
+ 
+@@ -153,6 +153,35 @@
+         product = ProductController()
+         response = product.get_product_by_id(product_id = product_id)
+ 
++        return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), response['status'], header
++
++
++    #####################################################33
++
++    @app.route('/missao/', methods=['GET'])
++    @app.route('/missao/<limit>', methods=['GET'])
++    @auth_token_required
++    def get_missao():
++        header = {
++            'access_token': request.headers['access_token'],
++            "token_type": "JWT"
++        }
++
++        missao = MissaoController()
++        response = missao.get_missao()
++        return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), response['status'], header
++
++    @app.route('/missao/', methods=['GET'])
++    @app.route('/missao/<missao_id>', methods=['GET'])
++    @auth_token_required
++    def get_missaooes(missao_id):
++        header = {
++            'access_token': request.headers['access_token'],
++            "token_type": "JWT"
++        }
++
++        missao = MissaoController()
++        response = missao.get_missao_by_id(missao_id=missao_id)
+         return Response(json.dumps(response, ensure_ascii=False), mimetype='application/json'), response['status'], header
+ 
+     @app.route('/user/<user_id>', methods=['GET'])
+diff --git a/static/js/custom.js b/static/js/custom.js
+deleted file mode 100644
